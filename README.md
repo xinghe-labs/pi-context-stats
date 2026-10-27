@@ -42,7 +42,7 @@ pi 扩展:追踪上下文压缩、prompt 缓存命中与 token 花费。**零依
 ## 安装
 
 ```bash
-pi install npm:pi-context-stats
+pi install npm:@xinghe-labs/pi-context-stats
 ```
 
 或从本地路径:
@@ -50,6 +50,14 @@ pi install npm:pi-context-stats
 ```bash
 pi install /path/to/context-stats
 ```
+
+## 提醒与预警
+
+| 时机 | 触发条件 | 行为 |
+|---|---|---|
+| `message_end` / `turn_end` | 会话花费 ≥ $10 | `warning`:💰 花费达阈值(每会话一次) |
+| `message_end` / `turn_end` | 上下文占用 ≥ 85% | `warning`:🧠 占用阈值,建议提前落盘重要结论(每会话一次;压缩后重置可再触发) |
+| `session_before_compact` | pi 即将压缩 | `info`:📦 准备压缩(reason · tokens · willRetry)|
 
 ## 统计口径
 

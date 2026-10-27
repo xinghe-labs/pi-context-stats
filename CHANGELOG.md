@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-10-27
+
+### Added
+- **预算/阈值提醒**:本会话花费达 $10 或上下文占用 ≥85% 时 `warning` 提醒一次;压缩后占用警报解除可再次触发
+- **压缩前预警**(`session_before_compact`):显示 reason / 压缩前 tokens / 是否 willRetry —— 这是判断「要不要主动 /compact」的最后时机
+- **turn_end 时序修正**:状态栏改为整个回合结束时刷新一次,消除一个回合多条 assistant 消息时的中间值闪烁
+
 ## [1.0.0] - 2026-10-27
 
 ### Added

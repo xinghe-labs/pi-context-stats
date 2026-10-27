@@ -170,6 +170,26 @@ export default function (pi: ExtensionAPI) {
 	// 压缩原因只存在于 live 事件,条目里没有;写入自定义条目以便 resume 后回填
 	const REASON_LOG = "context-stats.compaction";
 
+	// 预算/阈值提醒:默认 $10 / 上下文 85%,各提醒一次后不再重复(新会话重置)
+	const DEFAULT_LIMITS = { cost: 10, contextPercent: 85 };
+	let alerted = { cost: false, context: false };
+
+	function checkThresholds(ctx: ExtensionContext): void {
+		if (!ctx.hasUI || (alerted.cost && alerted.context)) return;
+		if (!alerted.cost && stats.cost >= DEFAULT_LIMITS.cost) {
+			alerted.cost = true;
+			ctx.ui.notify(`💰 本会话花费已达 $${stats.cost.toFixed(2)}(阈值 $${DEFAULT_LIMITS.cost})`, "warning");
+		}
+		const cu = ctx.getContextUsage?.();
+		if (!alerted.context && cu && cu.percent !== null && cu.percent >= DEFAULT_LIMITS.contextPercent) {
+			alerted.context = true;
+			ctx.ui.notify(
+				`🧠 上下文占用 ${cu.percent.toFixed(0)}%(阈值 ${DEFAULT_LIMITS.contextPercent}%),可能即将压缩,重要结论建议先落盘到文件`,
+				"warning",
+			);
+		}
+	}
+
 	function newStats(): Stats {
 		return {
 			compactions: [],
@@ -249,6 +269,7 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("session_start", async (_event, ctx) => {
 		stats = newStats();
+		alerted = { cost: false, context: false };
 		const entries = ctx.sessionManager.getBranch();
 		// 先用自定义条目建 id → reason 映射(压缩条目本身不记录原因)
 		const reasons = new Map<string, string>();
@@ -287,7 +308,23 @@ export default function (pi: ExtensionAPI) {
 		const m = event.message as { role?: string; usage?: UsageLike };
 		if (m.role !== "assistant") return;
 		accumulate(m.usage);
+		checkThresholds(ctx);
+	});
+
+	// turn_end:整个回合结束才刷新状态栏,避免一个回合多条 assistant 消息时中间值闪烁
+	pi.on("turn_end", async (_event, ctx) => {
 		updateStatus(ctx);
+		checkThresholds(ctx);
+	});
+
+	// 压缩前预警:这是判断「要不要主动 /compact」的最后时机
+	pi.on("session_before_compact", async (event, ctx) => {
+		if (!ctx.hasUI) return;
+		const tokensBefore = event.preparation?.tokensBefore ?? 0;
+		ctx.ui.notify(
+			`📦 准备压缩(reason=${event.reason} · 压缩前 ${fmt(tokensBefore)} tokens${event.willRetry ? " · 完成后重试本轮" : ""})`,
+			"info",
+		);
 	});
 
 	pi.on("session_compact", async (event, ctx) => {
@@ -308,6 +345,8 @@ export default function (pi: ExtensionAPI) {
 		// 压缩自身的 LLM 调用走 completeSimple 直调,不触发 message_end,必须在这里记账
 		accumulate(entry.usage, "compaction");
 		if (entry.id) pi.appendEntry(REASON_LOG, { id: entry.id, reason });
+		// 上下文被压缩重置,占用警报解除
+		alerted.context = false;
 		updateStatus(ctx);
 		if (ctx.hasUI) {
 			const costText = cost > 0 ? ` · $${cost.toFixed(4)}` : "";
