@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="460" viewBox="0 0 880 460" font-family="'JetBrains Mono','Cascadia Code',Menlo,Consolas,monospace">
+  <defs>
+    <style>
+      .fg { fill: #e6e6e6; }
+      .dim { fill: #8a8a8a; }
+      .warn { fill: #e5c07b; }
+      .ok { fill: #98c379; }
+      .head { fill: #61afef; }
+    </style>
+  </defs>
+  <rect width="880" height="460" rx="8" fill="#1b1e24"/>
+  <rect x="0" y="0" width="880" height="30" rx="8" fill="#16181d"/>
+  <circle cx="16" cy="15" r="5" fill="#ff5f57"/><circle cx="32" cy="15" r="5" fill="#febc2e"/><circle cx="48" cy="15" r="5" fill="#28c840"/>
+  <text x="70" y="20" font-size="12" fill="#8a8a8a">pi — ~/project</text>
+
+  <!-- /ctxstats panel -->
+  <text x="24" y="62"  class="head"  font-size="13">🧠 上下文:163.8k / 200.0k tokens(81.9%)</text>
+
+  <text x="24" y="92"  class="fg" font-size="13">📦 压缩次数:1</text>
+  <text x="40" y="114" class="dim" font-size="13">10:30 · 压缩前 19.4k tokens · threshold · $0.0025</text>
+
+  <text x="24" y="144" class="fg" font-size="13">💾 缓存读(累计):713.6k tokens</text>
+  <text x="40" y="166" class="dim" font-size="13">最近一轮:627.2k │ 平均每轮:356.8k</text>
+  <text x="40" y="188" class="dim" font-size="13">缓存命中率:99.6%</text>
+  <text x="40" y="210" class="dim" font-size="13">缓存写:800 tokens</text>
+  <text x="40" y="232" class="dim" font-size="13">其中非对话回合:压缩 19.4k · cache_warm 50.0k</text>
+
+  <text x="24" y="262" class="warn" font-size="13">♻️ 缓存浪费:51.2k tokens ≈ $0.1382(1 次 miss)</text>
+
+  <text x="24" y="292" class="fg" font-size="13">↑ 输入(未命中):3.0k tokens</text>
+  <text x="24" y="314" class="fg" font-size="13">↓ 输出:1.0k tokens</text>
+  <text x="24" y="336" class="fg" font-size="13">💬 请求次数:2</text>
+  <text x="24" y="358" class="ok"  font-size="13">💰 总花费:$0.0595</text>
+  <text x="40" y="380" class="dim" font-size="13">其中:压缩 $0.0025 · cache_warm $0.0150</text>
+
+  <!-- status bar -->
+  <rect x="0" y="414" width="880" height="46" fill="#16181d"/>
+  <line x1="0" y1="414" x2="880" y2="414" stroke="#2c313a" stroke-width="1"/>
+  <text x="24" y="442" font-size="14">
+    <tspan class="warn">📦1次压缩</tspan><tspan class="dim"> │ </tspan><tspan class="dim">读713.6k·本轮627.2k</tspan><tspan class="dim"> │ </tspan><tspan class="ok">$0.059</tspan>
+  </text>
+</svg>

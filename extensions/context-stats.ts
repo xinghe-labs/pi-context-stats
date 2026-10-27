@@ -19,154 +19,8 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-interface UsageLike {
-	input: number;
-	output: number;
-	cacheRead: number;
-	cacheWrite: number;
-	cost?: {
-		input?: number;
-		output?: number;
-		cacheRead?: number;
-		cacheWrite?: number;
-		total?: number;
-	};
-}
-
-/** 非对话回合的用量,按 kind 分组(如 cache_warm) */
-interface AuxUsage {
-	read: number;
-	cost: number;
-	count: number;
-}
-
-interface CompactionRecord {
-	time: string;
-	tokensBefore: number;
-	reason: string;
-	cost: number;
-}
-
-interface Stats {
-	compactions: CompactionRecord[];
-	input: number;
-	output: number;
-	cacheRead: number;
-	cacheWrite: number;
-	cost: number;
-	requests: number;
-	lastRead: number; // 最近一次对话回合的缓存读
-	compactRead: number; // 压缩调用自身的缓存读(已计入 cacheRead)
-	compactCost: number;
-	aux: Map<string, AuxUsage>; // type:"usage" 条目(已计入上面的总量)
-}
-
-/** pi 判定缓存 miss 的噪声下限。复刻自 pi 内置 dist/core/cache-stats.js */
-const NOISE_FLOOR_TOKENS = 1024;
-
-interface CacheWaste {
-	missedTokens: number;
-	missedCost: number;
-	missCount: number;
-}
-
-interface RequestState {
-	promptTokens: number;
-	reportedCache: boolean;
-}
-
-interface ModelRegistryLike {
-	find(provider: string, modelId: string):
-		| { cost: { cacheRead: number } }
-		| undefined;
-}
-
-/** 用于扫描分支条目的宽类型(条目种类多,只取需要的字段) */
-interface EntryLike {
-	type?: string;
-	kind?: string;
-	usage?: UsageLike;
-	message?: {
-		role?: string;
-		provider?: string;
-		model?: string;
-		usage?: UsageLike;
-	};
-}
-
-function asPreviousRequest(
-	u: UsageLike | undefined,
-	reportedCache: boolean,
-): RequestState | undefined {
-	if (!u) return undefined;
-	const promptTokens = (u.input ?? 0) + (u.cacheRead ?? 0) + (u.cacheWrite ?? 0);
-	if (promptTokens <= 0) return undefined;
-	return {
-		promptTokens,
-		reportedCache: reportedCache || u.cacheRead + u.cacheWrite > 0,
-	};
-}
-
-/**
- * 缓存浪费:上一轮 prompt 里本来已在缓存中的 token,这一轮却被按 input / cacheWrite 重新计费。
- * 它比命中率更能说明「到底花了多少冤枉钱」。算法与 pi 内置的 computeCacheWaste 一致
- * (内的 cache-stats.js 未公开导出,且本目录解析不到包内深层路径,故在此复刻)。
- */
-function computeCacheWaste(
-	entries: readonly EntryLike[],
-	registry: ModelRegistryLike | undefined,
-): CacheWaste {
-	const totals: CacheWaste = { missedTokens: 0, missedCost: 0, missCount: 0 };
-	let prev: RequestState | undefined;
-
-	for (const entry of entries) {
-		// 上下文被合法改写(压缩/分支摘要),下一轮 prompt 是新内容,不算浪费;模型切换除外(会重新全量计费)
-		if (entry.type === "compaction" || entry.type === "branch_summary") {
-			prev = undefined;
-			continue;
-		}
-		// 保温刷新本身被视为「上一轮请求」,不作为 miss 源
-		if (entry.type === "usage" && entry.kind === "cache_warm") {
-			prev = asPreviousRequest(entry.usage, true) ?? prev;
-			continue;
-		}
-		if (entry.type !== "message" || entry.message?.role !== "assistant") continue;
-
-		const msg = entry.message;
-		const u = msg.usage;
-		const promptTokens = u
-			? (u.input ?? 0) + (u.cacheRead ?? 0) + (u.cacheWrite ?? 0)
-			: 0;
-		// 首次请求、无缓存活动上报(provider 不支持缓存)都不算 miss
-		const eligible =
-			prev !== undefined &&
-			u !== undefined &&
-			promptTokens > 0 &&
-			(u.cacheRead + u.cacheWrite > 0 || prev.reportedCache);
-		if (eligible && prev && u) {
-			const missedTokens = Math.min(prev.promptTokens, promptTokens) - u.cacheRead;
-			if (missedTokens > NOISE_FLOOR_TOKENS) {
-				// 被重新计费的部分只能落在 input / cacheWrite 桶,所以实付单价直接由本条消息的成本明细得出
-				const paidTokens = u.input + u.cacheWrite;
-				const paidPerToken =
-					paidTokens > 0
-						? ((u.cost?.input ?? 0) + (u.cost?.cacheWrite ?? 0)) / paidTokens
-						: 0;
-				const readPerToken =
-					u.cacheRead > 0
-						? (u.cost?.cacheRead ?? 0) / u.cacheRead
-						: msg.provider && msg.model
-							? (registry?.find(msg.provider, msg.model)?.cost.cacheRead ?? 0) / 1_000_000
-							: 0;
-				totals.missedTokens += missedTokens;
-				totals.missedCost += missedTokens * Math.max(0, paidPerToken - readPerToken);
-				totals.missCount += 1;
-			}
-		}
-		prev = asPreviousRequest(u, prev?.reportedCache ?? false) ?? prev;
-	}
-	return totals;
-}
+import { computeCacheWaste } from "./cache-waste.ts";
+import type { EntryLike, Stats, UsageLike } from "./types.ts";
 
 export default function (pi: ExtensionAPI) {
 	let stats: Stats = newStats();
@@ -177,6 +31,8 @@ export default function (pi: ExtensionAPI) {
 	// 预算/阈值提醒:默认 $10 / 上下文 85%,各提醒一次后不再重复(新会话重置)
 	// 可在 ~/.pi/agent/settings.json 里覆写:
 	//   "pi-context-stats": { "costLimit": 5, "contextPercent": 70 }
+	const DEFAULT_LIMITS = { cost: 10, contextPercent: 85 };
+
 	function readLimits(): { cost: number; contextPercent: number } {
 		try {
 			const raw = JSON.parse(readFileSync(join(homedir(), ".pi", "agent", "settings.json"), "utf-8"));
@@ -191,7 +47,6 @@ export default function (pi: ExtensionAPI) {
 			return { ...DEFAULT_LIMITS };
 		}
 	}
-	const DEFAULT_LIMITS = { cost: 10, contextPercent: 85 };
 	let limits = readLimits();
 	let alerted = { cost: false, context: false };
 

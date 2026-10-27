@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-10-27
+
+### Changed
+- **模块拆分**:单文件 441 行拆为三层 —— `extensions/types.ts`(共享类型)、`extensions/cache-waste.ts`(纯算法,无 pi 依赖,可独立测试)、`extensions/context-stats.ts`(事件接线与 UI)。manifest 与命令名不变,行为无变化
+- **README 重写**:英文主文档(社区读者),中文版移至 `README.zh-CN.md`,两版互链
+- **新增预览图**:`docs/preview.svg`(用测试验证过的真实输出字符串渲染的终端样式预览)
+
 ## [1.3.0] - 2026-10-27
 
 ### Added
