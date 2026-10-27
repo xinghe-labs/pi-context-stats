@@ -33,5 +33,13 @@
   ],
   "publishConfig": {
     "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xinghe-labs/pi-context-stats.git"
+  },
+  "homepage": "https://github.com/xinghe-labs/pi-context-stats#readme",
+  "bugs": {
+    "url": "https://github.com/xinghe-labs/pi-context-stats/issues"
   }
 }
