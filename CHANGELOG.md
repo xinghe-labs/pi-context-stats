@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-10-27
+
+### Added
+- **测试入库**:`test/` 目录(18 组行为测试 + 10 场景与 pi 内置对拍),`npm test` 一键运行;测试自动探测 pi 安装目录(或 `PI_INSTALL_DIR`),无需装任何依赖
+- **阈值可配置**:`~/.pi/agent/settings.json` 里加 `"pi-context-stats": { "costLimit": 5, "contextPercent": 70 }` 即可覆写默认阈值($10 / 85%)
+
+### Changed
+- **命中率公式修正**:分母从 `input + cacheRead + cacheWrite` 改为 `input + cacheRead` —— cacheWrite 是新写入,不是「本可命中」的缓存,不应计入分母。口径变化:同数据下命中率会略微升高(通常 <0.2%)
+
 ## [1.2.0] - 2026-10-27
 
 ### Changed

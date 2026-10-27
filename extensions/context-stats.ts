@@ -15,6 +15,9 @@
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 interface UsageLike {
 	input: number;
@@ -172,20 +175,37 @@ export default function (pi: ExtensionAPI) {
 	const REASON_LOG = "context-stats.compaction";
 
 	// 预算/阈值提醒:默认 $10 / 上下文 85%,各提醒一次后不再重复(新会话重置)
+	// 可在 ~/.pi/agent/settings.json 里覆写:
+	//   "pi-context-stats": { "costLimit": 5, "contextPercent": 70 }
+	function readLimits(): { cost: number; contextPercent: number } {
+		try {
+			const raw = JSON.parse(readFileSync(join(homedir(), ".pi", "agent", "settings.json"), "utf-8"));
+			const c = raw?.["pi-context-stats"];
+			return {
+				cost: typeof c?.costLimit === "number" && c.costLimit > 0 ? c.costLimit : DEFAULT_LIMITS.cost,
+				contextPercent: typeof c?.contextPercent === "number" && c.contextPercent > 0 && c.contextPercent <= 100
+					? c.contextPercent
+					: DEFAULT_LIMITS.contextPercent,
+			};
+		} catch {
+			return { ...DEFAULT_LIMITS };
+		}
+	}
 	const DEFAULT_LIMITS = { cost: 10, contextPercent: 85 };
+	let limits = readLimits();
 	let alerted = { cost: false, context: false };
 
 	function checkThresholds(ctx: ExtensionContext): void {
 		if (!ctx.hasUI || (alerted.cost && alerted.context)) return;
-		if (!alerted.cost && stats.cost >= DEFAULT_LIMITS.cost) {
+		if (!alerted.cost && stats.cost >= limits.cost) {
 			alerted.cost = true;
-			ctx.ui.notify(`💰 本会话花费已达 $${stats.cost.toFixed(2)}(阈值 $${DEFAULT_LIMITS.cost})`, "warning");
+			ctx.ui.notify(`💰 本会话花费已达 $${stats.cost.toFixed(2)}(阈值 $${limits.cost})`, "warning");
 		}
 		const cu = ctx.getContextUsage?.();
-		if (!alerted.context && cu && cu.percent !== null && cu.percent >= DEFAULT_LIMITS.contextPercent) {
+		if (!alerted.context && cu && cu.percent !== null && cu.percent >= limits.contextPercent) {
 			alerted.context = true;
 			ctx.ui.notify(
-				`🧠 上下文占用 ${cu.percent.toFixed(0)}%(阈值 ${DEFAULT_LIMITS.contextPercent}%),可能即将压缩,重要结论建议先落盘到文件`,
+				`🧠 上下文占用 ${cu.percent.toFixed(0)}%(阈值 ${limits.contextPercent}%),可能即将压缩,重要结论建议先落盘到文件`,
 				"warning",
 			);
 		}
@@ -216,6 +236,7 @@ export default function (pi: ExtensionAPI) {
 	const fmtTime = (iso: string): string => iso.slice(11, 16); // "HH:MM"
 
 	function hitRate(s: Stats = stats): number {
+		// 分母只含本可命中的部分:cacheWrite 是新写入,不是「本可命中」的缓存
 		return s.input + s.cacheRead > 0
 			? (s.cacheRead / (s.input + s.cacheRead)) * 100
 			: 0;

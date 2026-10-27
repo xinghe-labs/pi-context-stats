@@ -57,9 +57,20 @@ pi install /path/to/context-stats
 
 | 时机 | 触发条件 | 行为 |
 |---|---|---|
-| `message_end` / `turn_end` | 会话花费 ≥ $10 | `warning`:💰 花费达阈值(每会话一次) |
-| `message_end` / `turn_end` | 上下文占用 ≥ 85% | `warning`:🧠 占用阈值,建议提前落盘重要结论(每会话一次;压缩后重置可再触发) |
+| `message_end` / `turn_end` | 会话花费 ≥ `$10`(默认) | `warning`:💰 花费达阈值(每会话一次) |
+| `message_end` / `turn_end` | 上下文占用 ≥ `85%`(默认) | `warning`:🧠 占用阈值,建议提前落盘重要结论(每会话一次;压缩后重置可再触发) |
 | `session_before_compact` | pi 即将压缩 | `info`:📦 准备压缩(reason · tokens · willRetry)|
+
+阈值可在 `~/.pi/agent/settings.json` 覆写:
+
+```json
+{
+  "pi-context-stats": {
+    "costLimit": 5,
+    "contextPercent": 70
+  }
+}
+```
 
 ## 统计口径
 
@@ -91,12 +102,15 @@ pi 自己的实现在 `cost` 明细缺字段时会返回 `NaN`(它写 `cost.inpu
 ## 开发
 
 ```bash
-# 运行 mock 测试(11 组行为)
-node /tmp/test-context-stats.mjs
-
-# 与 pi 内置 computeCacheWaste 对拍(10 场景)
-node /tmp/crosscheck-cache-waste.mjs
+npm test
 ```
+
+运行 `test/` 下的两组测试:
+
+- `behavior.test.mjs`:18 组 mock 行为测试(事件累计、重建、阈值、预警、时序)
+- `cache-waste-crosscheck.test.mjs`:10 场景与 pi 内置 `computeCacheWaste` 对拍
+
+测试自动探测 pi 安装目录(也可用 `PI_INSTALL_DIR` 环境变量指定),不需要 `npm install` —— 包本身零依赖,测试用的 jiti/cacache 也从 pi 自带依赖里取。
 
 ## License
 
