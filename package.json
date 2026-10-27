@@ -1,6 +1,6 @@
 {
-  "name": "@xinghe-labs/pi-context-stats",
-  "version": "1.1.0",
+  "name": "pi-context-stats",
+  "version": "1.2.0",
   "description": "pi 扩展:状态栏实时显示压缩次数+缓存读+花费,/ctxstats 展示压缩历史、缓存命中率、缓存浪费(miss 计费)与各项费用分解",
   "keywords": [
     "pi-package",
@@ -31,9 +31,6 @@
     "CHANGELOG.md",
     "LICENSE"
   ],
-  "publishConfig": {
-    "access": "public"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/xinghe-labs/pi-context-stats.git"

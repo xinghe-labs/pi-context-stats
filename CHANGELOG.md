@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-10-27
+
+### Changed
+- 包名从 `@xinghe-labs/pi-context-stats` 改为无 scope 的 **`pi-context-stats`**,安装命令更短:`pi install npm:pi-context-stats`
+- 旧包名已 deprecate,功能无变化
+
 ## [1.1.0] - 2026-10-27
 
 ### Added

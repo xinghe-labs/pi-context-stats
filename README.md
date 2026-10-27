@@ -1,8 +1,10 @@
 # context-stats
 
-[![pi-package](https://img.shields.io/badge/pi--package-context--stats-blue)](https://pi.dev/packages)
+[![pi-package](https://img.shields.io/badge/pi--package-pi--context--stats-blue)](https://pi.dev/packages)
 
-pi 扩展:追踪上下文压缩、prompt 缓存命中与 token 花费。**零依赖、纯 TypeScript、~360 行**。
+> 旧包名 `@xinghe-labs/pi-context-stats` 已废弃,统一用 `pi-context-stats`。
+
+pi 扩展:追踪上下文压缩、prompt 缓存命中与 token 花费。**零依赖、纯 TypeScript、~420 行**。
 
 ## 状态栏
 
@@ -42,7 +44,7 @@ pi 扩展:追踪上下文压缩、prompt 缓存命中与 token 花费。**零依
 ## 安装
 
 ```bash
-pi install npm:@xinghe-labs/pi-context-stats
+pi install npm:pi-context-stats
 ```
 
 或从本地路径:
